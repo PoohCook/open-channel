@@ -19,6 +19,11 @@ enum Message {
 struct Serialization(Vec<u8>);
 
 impl Serialization {
+    #[allow(unused)]
+    fn get_vec(&self) -> &Vec<u8> {
+        &self.0
+    }
+
     fn pop_byte(&mut self) -> u8 {
         self.0.drain(0..1).next().unwrap()
     }
@@ -282,7 +287,7 @@ mod tests {
         let rx_message = Message::deserialize(&mut all_bytes);
         assert_eq!(rx_message.unwrap(), params);
 
-        assert_eq!([6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], all_bytes.0[..]);
+        assert_eq!([6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], all_bytes.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut all_bytes);
         assert_eq!(rx_message.unwrap(), response);
