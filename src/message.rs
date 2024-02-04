@@ -1,10 +1,8 @@
-use std::io::Read;
-
 use super::serial_params::Parity;
 use super::serial_params::StopBits;
 
 extern crate bytes;
-use bytes::Bytes;
+// use bytes::Bytes;
 
 #[derive(PartialEq, Debug)]
 pub enum Message {
@@ -35,37 +33,37 @@ impl Message{
         }
     }
 
-    fn get_bytes(&self) -> Bytes {
+    fn get_bytes(&self) -> Vec<u8> {
         let typeid = self.get_typeid();
         return match self {
-            Self::Ping => Bytes::from([typeid].to_vec()),
-            Self::Pong => Bytes::from([typeid].to_vec()),
-            Self::VersionQuery => Bytes::from([typeid].to_vec()),
+            Self::Ping => [typeid].to_vec(),
+            Self::Pong => [typeid].to_vec(),
+            Self::VersionQuery => [typeid].to_vec(),
             Self::VersionData { major, minor, maintenance, build } => {
                 let vec = [typeid, *major, *minor, *maintenance, *build].to_vec();
-                Bytes::from(vec)
+                vec
             },
             Self::AdcQuery { channel, length, increment_usec } => {
                 let mut vec = [typeid, *channel, *length].to_vec();
                 vec.extend(increment_usec.to_le_bytes().to_vec());
-                Bytes::from(vec)
+                vec
             },
             Self::AdcData { channel, data } => {
                 let mut vec = [typeid, *channel].to_vec();
                 vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
-                Bytes::from(vec)
+                vec
             },
             Self::Status { rcv_count, snd_count, rcv_fails } => {
                 let mut vec = [typeid,].to_vec();
                 let data = [rcv_count, snd_count, rcv_fails].to_vec();
                 vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
-                Bytes::from(vec)
+                vec
             },
             Self::SerialParams { channel, baud, parity, stop } => {
                 let mut vec = [typeid, *channel].to_vec();
                 vec.extend(baud.to_le_bytes().to_vec());
                 vec.extend([parity.get_byte(), stop.get_byte()].to_vec());
-                Bytes::from(vec)
+                vec
             },
 
             // TODO: kill this panic
@@ -73,7 +71,7 @@ impl Message{
         }
     }
 
-    fn from_bytes(bytes: &Bytes) -> Option<Self> {
+    fn from_bytes(bytes: &[u8]) -> Option<Self> {
 
         match bytes[0] {
             1 => Some(Self::Ping),
@@ -124,7 +122,7 @@ mod tests {
 
     #[test]
     fn scribble() {
-        let bytes = Bytes::from_static(b"\x08\x09\xA0\xA1 hello");
+        let bytes = b"\x08\x09\xA0\xA1 hello".to_vec();
         let le_u32 = u32::from_le_bytes((&bytes[0..4]).try_into().unwrap());
 
         assert_eq!(0xa1a00908, le_u32);
