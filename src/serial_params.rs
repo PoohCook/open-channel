@@ -1,18 +1,18 @@
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
-pub enum Parity{
+pub enum Parity {
     Even,
     Odd,
     None,
 }
 
-impl Parity{
+impl Parity {
     pub fn from_byte(byte: &u8) -> Option<Self> {
         match byte {
             0 => Some(Self::None),
             1 => Some(Self::Even),
             2 => Some(Self::Odd),
-            _ => None
+            _ => None,
         }
     }
     pub fn get_byte(&self) -> u8 {
@@ -27,19 +27,19 @@ impl Parity{
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
-pub enum StopBits{
+pub enum StopBits {
     One,
     Two,
     OneAndHalf,
 }
 
-impl StopBits{
+impl StopBits {
     pub fn from_byte(byte: &u8) -> Option<Self> {
         match byte {
             1 => Some(Self::One),
             2 => Some(Self::Two),
             3 => Some(Self::OneAndHalf),
-            _ => None
+            _ => None,
         }
     }
     pub fn get_byte(&self) -> u8 {
