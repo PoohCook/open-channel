@@ -1,3 +1,4 @@
+
 use super::serial_params::Parity;
 use super::serial_params::StopBits;
 
@@ -13,6 +14,19 @@ enum Message {
     Status { rcv_count: u16, snd_count: u16, rcv_fails: u16},
     SerialParams { channel: u8, baud: u32, parity: Parity, stop: StopBits},
     // SerialData {channel: u8, data: String},
+}
+
+struct Serialization(Vec<u8>);
+
+impl Serialization {
+    fn pop_byte(&mut self) -> u8 {
+        self.0.drain(0..1).next().unwrap()
+    }
+
+    fn pop_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
+        self.0.drain(0..num_bytes).collect()
+    }
+
 }
 
 
@@ -33,47 +47,50 @@ impl Message{
     }
 
     #[allow(unused)]
-    fn deserialize(bytes: &[u8]) -> Option<Self> {
+    fn deserialize(bytes: &mut Serialization) -> Option<Self> {
 
-        match bytes[0] {
+        match bytes.pop_byte() {
             1 => Some(Self::Ping),
             2 => Some(Self::Pong),
             3 => Some(Self::VersionQuery),
             4 => Some(Self::VersionData {
-                    major: bytes[1],
-                    minor: bytes[2],
-                    maintenance: bytes[3],
-                    build: bytes[4]
+                    major: bytes.pop_byte(),
+                    minor: bytes.pop_byte(),
+                    maintenance: bytes.pop_byte(),
+                    build: bytes.pop_byte()
                 }),
             5 => { Some(Self::AdcQuery {
-                    channel: bytes[1],
-                    length: bytes[2] ,
-                    increment_usec: u32::from_le_bytes((&bytes[3..7]).try_into().unwrap())
+                    channel: bytes.pop_byte(),
+                    length: bytes.pop_byte() ,
+                    increment_usec: u32::from_le_bytes(bytes.pop_bytes(4).try_into().unwrap())
                 })},
-            6 => { Some(Self::AdcData {
-                    channel: bytes[1],
-                    data: bytes[2..]
+            6 => {
+                   let chan = bytes.pop_byte();
+                   let length = u16::from_le_bytes(bytes.pop_bytes(2).try_into().unwrap());
+                   Some(Self::AdcData {
+                    channel: chan,
+                    data: bytes.pop_bytes(length as usize)
                         .chunks(2)
                         .map(|chunk| {
                             let mut bytes = [0; 2];
                             bytes.copy_from_slice(chunk);
                             i16::from_le_bytes(bytes)
-                        })
-                    .collect()
+                        }).collect()
                 })},
             7 => { Some(Self::Status {
-                    rcv_count: u16::from_le_bytes((&bytes[1..3]).try_into().unwrap()),
-                    snd_count: u16::from_le_bytes((&bytes[3..5]).try_into().unwrap()),
-                    rcv_fails: u16::from_le_bytes((&bytes[5..7]).try_into().unwrap())
+                    rcv_count: u16::from_le_bytes(bytes.pop_bytes(2).try_into().unwrap()),
+                    snd_count: u16::from_le_bytes(bytes.pop_bytes(2).try_into().unwrap()),
+                    rcv_fails: u16::from_le_bytes(bytes.pop_bytes(2).try_into().unwrap())
                 })},
-            8 => { Some(Self::SerialParams {
-                    channel: bytes[1],
-                    baud: u32::from_le_bytes((&bytes[2..6]).try_into().unwrap()),
-                    parity: Parity::from_byte(&bytes[6]).unwrap_or(Parity::None),
-                    stop: StopBits::from_byte(&bytes[6]).unwrap_or(StopBits::One) })}
+            8 => {
+                 Some(Self::SerialParams {
+                    channel: bytes.pop_byte(),
+                    baud: u32::from_le_bytes(bytes.pop_bytes(4).try_into().unwrap()),
+                    parity: Parity::from_byte(&bytes.pop_byte()).unwrap_or(Parity::None),
+                    stop: StopBits::from_byte(&bytes.pop_byte()).unwrap_or(StopBits::One) })}
             _ => None
-
         }
+
     }
 
     #[allow(unused)]
@@ -94,7 +111,10 @@ impl Message{
             },
             Self::AdcData { channel, data } => {
                 let mut vec = [typeid, *channel].to_vec();
-                vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
+                let data: Vec<u8> = data.iter().flat_map(|&value| value.to_le_bytes().to_vec()).collect();
+                let length: u16 = data.len() as u16;
+                vec.extend(length.to_le_bytes().to_vec());
+                vec.extend(data);
                 vec
             },
             Self::Status { rcv_count, snd_count, rcv_fails } => {
@@ -143,7 +163,8 @@ mod tests {
         let tx_bytes = ping.serialize();
         assert_eq!([1], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), Message::Ping);
 
         let pong = Message::Pong;
@@ -152,7 +173,8 @@ mod tests {
         let tx_bytes = pong.serialize();
         assert_eq!([2], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), Message::Pong);
 
     }
@@ -165,7 +187,8 @@ mod tests {
         let tx_bytes = query.serialize();
         assert_eq!([3], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), query);
 
         let response = Message::VersionData { major: 1, minor: 2, maintenance: 3, build: 4 };
@@ -174,7 +197,8 @@ mod tests {
         let tx_bytes = response.serialize();
         assert_eq!([4, 1, 2, 3, 4], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), response);
 
     }
@@ -190,15 +214,17 @@ mod tests {
         let tx_bytes = query.serialize();
         assert_eq!([5, 1, 100, 5, 0, 0, 0], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), query);
 
         let response = Message::AdcData { channel: 1, data: [1024, 1999, 0, -800, -900].to_vec() };
 
         let tx_bytes = response.serialize();
-        assert_eq!([6, 1, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], tx_bytes[..]);
+        assert_eq!([6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), response);
 
     }
@@ -214,7 +240,8 @@ mod tests {
         let tx_bytes = status.serialize();
         assert_eq!([7, 4, 1, 14, 1, 0, 0], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), status);
     }
 
@@ -228,10 +255,40 @@ mod tests {
         let tx_bytes = params.serialize();
         assert_eq!([8, 1, 0, 75, 0, 0, 1, 1], tx_bytes[..]);
 
-        let rx_message = Message::deserialize(&tx_bytes);
+        let mut tx_bytes = Serialization(tx_bytes.to_owned());
+        let rx_message = Message::deserialize(&mut tx_bytes);
         assert_eq!(rx_message.unwrap(), params);
     }
 
+
+    #[test]
+    fn check_multiple_deserialize() {
+        let params = Message::SerialParams { channel: 1, baud: 19200, parity: Parity::Even, stop: StopBits::One };
+        let response = Message::AdcData { channel: 1, data: [1024, 1999, 0, -800, -900].to_vec() };
+
+        let mut all_bytes: Vec<u8> = Vec::new();
+
+        let tx_bytes = params.serialize();
+        assert_eq!([8, 1, 0, 75, 0, 0, 1, 1], tx_bytes[..]);
+        all_bytes.extend(tx_bytes);
+
+        let tx_bytes = response.serialize();
+        assert_eq!([6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], tx_bytes[..]);
+        all_bytes.extend(tx_bytes);
+        assert_eq!([8, 1, 0, 75, 0, 0, 1, 1, 6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], all_bytes[..]);
+
+        let mut all_bytes = Serialization(all_bytes.to_owned());
+
+        let rx_message = Message::deserialize(&mut all_bytes);
+        assert_eq!(rx_message.unwrap(), params);
+
+        assert_eq!([6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], all_bytes.0[..]);
+
+        let rx_message = Message::deserialize(&mut all_bytes);
+        assert_eq!(rx_message.unwrap(), response);
+
+
+    }
 
 
 }
