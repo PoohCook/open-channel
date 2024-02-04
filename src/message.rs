@@ -1,11 +1,9 @@
 use super::serial_params::Parity;
 use super::serial_params::StopBits;
 
-extern crate bytes;
-// use bytes::Bytes;
 
 #[derive(PartialEq, Debug)]
-pub enum Message {
+enum Message {
     Ping,
     Pong,
     VersionQuery,
@@ -14,11 +12,12 @@ pub enum Message {
     AdcData {channel: u8, data: Vec<i16>},
     Status { rcv_count: u16, snd_count: u16, rcv_fails: u16},
     SerialParams { channel: u8, baud: u32, parity: Parity, stop: StopBits},
-    SerialData {channel: u8, data: String},
+    // SerialData {channel: u8, data: String},
 }
 
 
 impl Message{
+    #[allow(unused)]
     fn get_typeid(&self) -> u8 {
         return match self {
             Self::Ping => 1,
@@ -29,49 +28,12 @@ impl Message{
             Self::AdcData { .. } => 6,
             Self::Status { .. } => 7,
             Self::SerialParams { .. } => 8,
-            Self::SerialData { .. } => 9
+            // Self::SerialData { .. } => 9
         }
     }
 
-    fn get_bytes(&self) -> Vec<u8> {
-        let typeid = self.get_typeid();
-        return match self {
-            Self::Ping => [typeid].to_vec(),
-            Self::Pong => [typeid].to_vec(),
-            Self::VersionQuery => [typeid].to_vec(),
-            Self::VersionData { major, minor, maintenance, build } => {
-                let vec = [typeid, *major, *minor, *maintenance, *build].to_vec();
-                vec
-            },
-            Self::AdcQuery { channel, length, increment_usec } => {
-                let mut vec = [typeid, *channel, *length].to_vec();
-                vec.extend(increment_usec.to_le_bytes().to_vec());
-                vec
-            },
-            Self::AdcData { channel, data } => {
-                let mut vec = [typeid, *channel].to_vec();
-                vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
-                vec
-            },
-            Self::Status { rcv_count, snd_count, rcv_fails } => {
-                let mut vec = [typeid,].to_vec();
-                let data = [rcv_count, snd_count, rcv_fails].to_vec();
-                vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
-                vec
-            },
-            Self::SerialParams { channel, baud, parity, stop } => {
-                let mut vec = [typeid, *channel].to_vec();
-                vec.extend(baud.to_le_bytes().to_vec());
-                vec.extend([parity.get_byte(), stop.get_byte()].to_vec());
-                vec
-            },
-
-            // TODO: kill this panic
-            _ => panic!()
-        }
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Option<Self> {
+    #[allow(unused)]
+    fn deserialize(bytes: &[u8]) -> Option<Self> {
 
         match bytes[0] {
             1 => Some(Self::Ping),
@@ -114,6 +76,45 @@ impl Message{
         }
     }
 
+    #[allow(unused)]
+    fn serialize(&self) -> Vec<u8> {
+        let typeid = self.get_typeid();
+        return match self {
+            Self::Ping => [typeid].to_vec(),
+            Self::Pong => [typeid].to_vec(),
+            Self::VersionQuery => [typeid].to_vec(),
+            Self::VersionData { major, minor, maintenance, build } => {
+                let vec = [typeid, *major, *minor, *maintenance, *build].to_vec();
+                vec
+            },
+            Self::AdcQuery { channel, length, increment_usec } => {
+                let mut vec = [typeid, *channel, *length].to_vec();
+                vec.extend(increment_usec.to_le_bytes().to_vec());
+                vec
+            },
+            Self::AdcData { channel, data } => {
+                let mut vec = [typeid, *channel].to_vec();
+                vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
+                vec
+            },
+            Self::Status { rcv_count, snd_count, rcv_fails } => {
+                let mut vec = [typeid,].to_vec();
+                let data = [rcv_count, snd_count, rcv_fails].to_vec();
+                vec.extend(data.iter().flat_map(|&value| value.to_le_bytes().to_vec()));
+                vec
+            },
+            Self::SerialParams { channel, baud, parity, stop } => {
+                let mut vec = [typeid, *channel].to_vec();
+                vec.extend(baud.to_le_bytes().to_vec());
+                vec.extend([parity.get_byte(), stop.get_byte()].to_vec());
+                vec
+            },
+
+            // TODO: kill this panic
+            _ => panic!()
+        }
+    }
+
 }
 
 #[cfg(test)]
@@ -139,19 +140,19 @@ mod tests {
         let ping = Message::Ping;
         assert_eq!(ping, Message::Ping);
 
-        let tx_bytes = ping.get_bytes();
+        let tx_bytes = ping.serialize();
         assert_eq!([1], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), Message::Ping);
 
         let pong = Message::Pong;
         assert_eq!(pong, Message::Pong);
 
-        let tx_bytes = pong.get_bytes();
+        let tx_bytes = pong.serialize();
         assert_eq!([2], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), Message::Pong);
 
     }
@@ -161,19 +162,19 @@ mod tests {
         let query = Message::VersionQuery;
         assert_eq!(query, Message::VersionQuery);
 
-        let tx_bytes = query.get_bytes();
+        let tx_bytes = query.serialize();
         assert_eq!([3], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), query);
 
         let response = Message::VersionData { major: 1, minor: 2, maintenance: 3, build: 4 };
         assert_eq!(response, Message::VersionData { major: 1, minor: 2, maintenance: 3, build: 4 });
 
-        let tx_bytes = response.get_bytes();
+        let tx_bytes = response.serialize();
         assert_eq!([4, 1, 2, 3, 4], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), response);
 
     }
@@ -186,18 +187,18 @@ mod tests {
 
         assert_eq!(5, query.get_typeid());
 
-        let tx_bytes = query.get_bytes();
+        let tx_bytes = query.serialize();
         assert_eq!([5, 1, 100, 5, 0, 0, 0], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), query);
 
         let response = Message::AdcData { channel: 1, data: [1024, 1999, 0, -800, -900].to_vec() };
 
-        let tx_bytes = response.get_bytes();
+        let tx_bytes = response.serialize();
         assert_eq!([6, 1, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), response);
 
     }
@@ -210,10 +211,10 @@ mod tests {
 
         assert_eq!(7, status.get_typeid());
 
-        let tx_bytes = status.get_bytes();
+        let tx_bytes = status.serialize();
         assert_eq!([7, 4, 1, 14, 1, 0, 0], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), status);
     }
 
@@ -224,10 +225,10 @@ mod tests {
 
         assert_eq!(8, params.get_typeid());
 
-        let tx_bytes = params.get_bytes();
+        let tx_bytes = params.serialize();
         assert_eq!([8, 1, 0, 75, 0, 0, 1, 1], tx_bytes[..]);
 
-        let rx_message = Message::from_bytes(&tx_bytes);
+        let rx_message = Message::deserialize(&tx_bytes);
         assert_eq!(rx_message.unwrap(), params);
     }
 
