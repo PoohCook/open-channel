@@ -1,8 +1,9 @@
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 #[repr(u8)]
 pub enum Parity {
     Even,
     Odd,
+    #[default]
     None,
 }
 
@@ -25,9 +26,10 @@ impl Parity {
 }
 
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 #[repr(u8)]
 pub enum StopBits {
+    #[default]
     One,
     Two,
     OneAndHalf,

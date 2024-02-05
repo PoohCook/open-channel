@@ -1,93 +1,74 @@
-use std::collections::HashMap;
-use open_channel::message::Package;
-use open_channel::message::Cereal;
+mod flavors;
+use flavors::{*};
+use open_channel::cereal::{Package, Packager};
+use open_channel::serial_params::{Parity, StopBits};
 
-
-#[derive(PartialEq, Debug, Default)]
-struct VersionData {
-    major: u8,
-    minor: u8,
-    maintenance: u8,
-    build: u8,
-}
-
-impl Cereal for VersionData{
-    fn get_id(&self) -> u8 {
-        4
-    }
-
-    fn serialize(&self, out: &mut Package) -> Result<(), String> {
-        out.push_bytes(&[self.major, self.minor, self.maintenance, self.build]);
-        Ok(())
-    }
-
-    fn deserialize(&mut self, source: &mut Package) -> Result<(), String> {
-        self.major = source.pop_byte();
-        self.minor = source.pop_byte();
-        self.maintenance = source.pop_byte();
-        self.build = source.pop_byte();
-
-        println!("we are: {:?}", self);
-        Ok(())
-    }
-}
-
-struct Packager {
-    map: HashMap<u8, Box<dyn Cereal>>,
-}
-
-impl Packager {
-
-    fn new() -> Self {
-
-        let mut msg_map: HashMap<u8, Box<dyn Cereal>> = HashMap::new();
-
-        msg_map.insert(4, Box::new(VersionData::default()));
-
-        Self {
-            map: msg_map
-        }
-
-    }
-
-    fn serialize(&self, msg: &dyn Cereal, out: &mut Package) -> Result<(), String>{
-        let id = msg.get_id();
-        out.push_bytes(&[id]);
-        msg.serialize(out)
-    }
-
-    fn deserialize(&mut self, source: &mut Package) -> Result<(), String> {
-        let id = source.pop_byte();
-        self.map.entry(id).and_modify(|msg| {
-            msg.deserialize(source).unwrap();
-        });
-        Ok(())
-    }
-
+fn create_packger() -> Packager {
+    let mut packager = Packager::new();
+    packager.add_flavor(Box::new(Ping::default()));
+    packager.add_flavor(Box::new(Pong::default()));
+    packager.add_flavor(Box::new(VersionQuery::default()));
+    packager.add_flavor(Box::new(VersionData::default()));
+    packager.add_flavor(Box::new(AdcQuery::default()));
+    packager.add_flavor(Box::new(AdcData::default()));
+    packager.add_flavor(Box::new(SerialParams::default()));
+    packager
 }
 
 
 fn main() {
-    // let json_data = r#"{ "name": "Alice", "age": 30, "sex": "female" }"#;
-    // let person: Person = serde_json::from_str(json_data).unwrap();
-    // println!("{:?}", person);
 
-    let mut map = Packager::new();
+    let mut packager = create_packger();
 
-    let data = VersionData{
+    let mut serial = Package::new();
+    packager.serialize(&Ping::default(), &mut serial).unwrap();
+    packager.serialize(&Pong::default(), &mut serial).unwrap();
+    packager.serialize(&VersionQuery::default(), &mut serial).unwrap();
+    packager.serialize(&VersionData{
         major: 1,
         minor: 2,
         maintenance: 3,
         build: 4,
-    };
+    }, &mut serial).unwrap();
+    packager.serialize(&VersionData{
+        major: 4,
+        minor: 1,
+        maintenance: 9,
+        build: 3,
+    }, &mut serial).unwrap();
+    packager.serialize(&SerialParams{
+        channel: 1,
+        baud: 19200,
+        parity: Parity::Even,
+        stop: StopBits::One
+    }, &mut serial).unwrap();
+    packager.serialize(&AdcQuery{
+        channel: 3,
+        length:4,
+        increment_usec: 1500
+    }, &mut serial).unwrap();
+    packager.serialize(&AdcData{
+        channel: 7,
+        data: [1024, 1999, 0, -800, -900].to_vec()
+    }, &mut serial).unwrap();
+    packager.serialize(&SerialParams{
+        channel: 2,
+        baud: 9600,
+        parity: Parity::Odd,
+        stop: StopBits::Two
+    }, &mut serial).unwrap();
+    packager.serialize(&SerialParams{
+        channel: 3,
+        baud: 4800,
+        parity: Parity::None,
+        stop: StopBits::One
+    }, &mut serial).unwrap();
 
-    let mut serial = Package::new();
-    map.serialize(&data, &mut serial).unwrap();
+    while !serial.is_empty(){
+        packager.deserialize(&mut serial).unwrap();
+    }
 
-    assert_eq!([4, 1, 2, 3, 4], serial.get_vec()[..]);
-
-    map.deserialize(&mut serial).unwrap();
-    assert_eq!(0, serial.get_vec().len());
+    // assert_eq!(0, serial.get_vec().len());
 
 
 }

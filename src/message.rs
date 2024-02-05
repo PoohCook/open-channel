@@ -1,7 +1,7 @@
 
 use super::serial_params::Parity;
 use super::serial_params::StopBits;
-
+use super::cereal::{Package};
 
 #[derive(PartialEq, Debug)]
 enum Message {
@@ -34,37 +34,6 @@ enum Message {
     // SerialData {channel: u8, data: String},
 }
 
-pub struct Package(Vec<u8>);
-
-impl Package {
-    #[allow(unused)]
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    #[allow(unused)]
-    pub fn get_vec(&self) -> &Vec<u8> {
-        &self.0
-    }
-
-    pub fn pop_byte(&mut self) -> u8 {
-        self.0.drain(0..1).next().unwrap()
-    }
-
-    pub fn pop_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
-        self.0.drain(0..num_bytes).collect()
-    }
-
-    pub fn push_bytes(&mut self, bytes: &[u8]) {
-        self.0.extend(bytes)
-    }
-}
-
-pub trait Cereal {
-    fn get_id(&self) -> u8;
-    fn serialize(&self, out: &mut Package) -> Result<(), String>;
-    fn deserialize(&mut self, source: &mut Package) -> Result<(), String>;
-}
 
 impl Message {
     #[allow(unused)]
