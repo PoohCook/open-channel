@@ -134,12 +134,12 @@ impl Message {
     }
 
     #[allow(unused)]
-    fn serialize(&self, out: &mut Serialization)  {
+    fn serialize(&self, out: &mut Serialization) -> Result<(), String> {
         let typeid = self.get_typeid();
-        return match self {
-            Self::Ping => out.push_bytes(&[typeid]),
-            Self::Pong => out.push_bytes(&[typeid]),
-            Self::VersionQuery => out.push_bytes(&[typeid]),
+        match self {
+            Self::Ping => {out.push_bytes(&[typeid]);},
+            Self::Pong => {out.push_bytes(&[typeid]);},
+            Self::VersionQuery => {out.push_bytes(&[typeid]);},
             Self::VersionData {
                 major,
                 minor,
@@ -187,8 +187,10 @@ impl Message {
             }
 
             // TODO: kill this panic
-            _ => panic!(),
+            _ => {return Err(String::from("unknown type id encountered"));},
         };
+
+        Ok(())
     }
 }
 
@@ -219,7 +221,7 @@ mod tests {
 
         let ping = Message::Ping;
 
-        ping.serialize(& mut serial);
+        ping.serialize(& mut serial).unwrap();
         assert_eq!([1], serial.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut serial);
@@ -227,7 +229,7 @@ mod tests {
 
         let pong = Message::Pong;
 
-        pong.serialize(&mut serial);
+        pong.serialize(&mut serial).unwrap();
         assert_eq!([2], serial.get_vec()[..]);
 
          let rx_message = Message::deserialize(&mut serial);
@@ -241,7 +243,7 @@ mod tests {
 
         let query = Message::VersionQuery;
 
-        query.serialize(&mut serial);
+        query.serialize(&mut serial).unwrap();
         assert_eq!([3], serial.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut serial);
@@ -254,7 +256,7 @@ mod tests {
             build: 4,
         };
 
-        response.serialize(&mut serial);
+        response.serialize(&mut serial).unwrap();
         assert_eq!([4, 1, 2, 3, 4], serial.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut serial);
@@ -272,7 +274,7 @@ mod tests {
             increment_usec: 5,
         };
 
-        query.serialize(&mut serial);
+        query.serialize(&mut serial).unwrap();
         assert_eq!([5, 1, 100, 5, 0, 0, 0], serial.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut serial);
@@ -283,7 +285,7 @@ mod tests {
             data: [1024, 1999, 0, -800, -900].to_vec(),
         };
 
-        response.serialize(&mut serial);
+        response.serialize(&mut serial).unwrap();
         assert_eq!(
             [6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252],
             serial.get_vec()[..]
@@ -304,7 +306,7 @@ mod tests {
             rcv_fails: 0,
         };
 
-        status.serialize(&mut serial);
+        status.serialize(&mut serial).unwrap();
         assert_eq!([7, 4, 1, 14, 1, 0, 0], serial.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut serial);
@@ -322,7 +324,7 @@ mod tests {
             stop: StopBits::One,
         };
 
-        params.serialize(&mut serial);
+        params.serialize(&mut serial).unwrap();
         assert_eq!([8, 1, 0, 75, 0, 0, 1, 1], serial.get_vec()[..]);
 
         let rx_message = Message::deserialize(&mut serial);
@@ -345,10 +347,10 @@ mod tests {
             data: [1024, 1999, 0, -800, -900].to_vec(),
         };
 
-        params.serialize(&mut serial);
+        params.serialize(&mut serial).unwrap();
         assert_eq!([8, 1, 0, 75, 0, 0, 1, 1], serial.get_vec()[..]);
 
-        response.serialize(&mut serial);
+        response.serialize(&mut serial).unwrap();
         assert_eq!(
             [8, 1, 0, 75, 0, 0, 1, 1, 6, 1, 10, 0, 0, 4, 207, 7, 0, 0, 224, 252, 124, 252],
             serial.get_vec()[..]
