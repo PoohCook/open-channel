@@ -34,32 +34,37 @@ enum Message {
     // SerialData {channel: u8, data: String},
 }
 
-struct Serialization(Vec<u8>);
+pub struct Package(Vec<u8>);
 
-impl Serialization {
+impl Package {
     #[allow(unused)]
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self(Vec::new())
     }
 
     #[allow(unused)]
-    fn get_vec(&self) -> &Vec<u8> {
+    pub fn get_vec(&self) -> &Vec<u8> {
         &self.0
     }
 
-    fn pop_byte(&mut self) -> u8 {
+    pub fn pop_byte(&mut self) -> u8 {
         self.0.drain(0..1).next().unwrap()
     }
 
-    fn pop_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
+    pub fn pop_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
         self.0.drain(0..num_bytes).collect()
     }
 
-    fn push_bytes(&mut self, bytes: &[u8]) {
+    pub fn push_bytes(&mut self, bytes: &[u8]) {
         self.0.extend(bytes)
     }
 }
 
+pub trait Cereal {
+    fn get_id(&self) -> u8;
+    fn serialize(&self, out: &mut Package) -> Result<(), String>;
+    fn deserialize(&mut self, source: &mut Package) -> Result<(), String>;
+}
 
 impl Message {
     #[allow(unused)]
@@ -78,7 +83,7 @@ impl Message {
     }
 
     #[allow(unused)]
-    fn deserialize(source: &mut Serialization) -> Option<Self> {
+    fn deserialize(source: &mut Package) -> Option<Self> {
 
         match source.pop_byte() {
             1 => Some(Self::Ping),
@@ -134,7 +139,7 @@ impl Message {
     }
 
     #[allow(unused)]
-    fn serialize(&self, out: &mut Serialization) -> Result<(), String> {
+    fn serialize(&self, out: &mut Package) -> Result<(), String> {
         let typeid = self.get_typeid();
         match self {
             Self::Ping => {out.push_bytes(&[typeid]);},
@@ -217,7 +222,7 @@ mod tests {
 
     #[test]
     fn check_ping_pong() {
-        let mut serial = Serialization::new();
+        let mut serial = Package::new();
 
         let ping = Message::Ping;
 
@@ -239,7 +244,7 @@ mod tests {
 
     #[test]
     fn check_version() {
-        let mut serial = Serialization::new();
+        let mut serial = Package::new();
 
         let query = Message::VersionQuery;
 
@@ -266,7 +271,7 @@ mod tests {
 
     #[test]
     fn check_adc() {
-        let mut serial = Serialization::new();
+        let mut serial = Package::new();
 
         let query = Message::AdcQuery {
             channel: 1,
@@ -298,7 +303,7 @@ mod tests {
 
     #[test]
     fn check_status() {
-        let mut serial = Serialization::new();
+        let mut serial = Package::new();
 
         let status = Message::Status {
             rcv_count: 260,
@@ -315,7 +320,7 @@ mod tests {
 
     #[test]
     fn check_parms() {
-        let mut serial = Serialization::new();
+        let mut serial = Package::new();
 
         let params = Message::SerialParams {
             channel: 1,
@@ -334,7 +339,7 @@ mod tests {
 
     #[test]
     fn check_multiple_deserialize() {
-        let mut serial = Serialization::new();
+        let mut serial = Package::new();
 
         let params = Message::SerialParams {
             channel: 1,

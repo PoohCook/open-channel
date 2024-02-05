@@ -1,2 +1,2 @@
-mod serial_params;
-mod message;
+pub mod serial_params;
+pub mod message;
