@@ -1,8 +1,17 @@
 use std::collections::HashMap;
 
-pub struct Package(Vec<u8>);
+/// A Hub for serializing and deserializing Cereal Flavors into a Package Stream
+///
+/// # Examples
+///
+/// ```
+/// use open_channel::cereal::Packager;
+///
+/// let mut packager = Packager::new();
+/// ```
+pub struct CerealStream(Vec<u8>);
 
-impl Package {
+impl CerealStream {
     pub fn new() -> Self {
         Self(Vec::new())
     }
@@ -28,16 +37,30 @@ impl Package {
     }
 }
 
-pub trait Cereal {
+/// A trait representing a Cereal Box.
+///
+/// This trait defines common methods that all Cereal Boxes should implement,
+/// A cereal box is a metaphor for a Message struct that can be poured out
+/// into a binary stream and tehn poured back into box from the stream and
+/// then consumed
+pub trait CerealBox {
+    /// Get the type id fo the ceral being processed.
     fn get_id(&self) -> u8;
-    fn pour_in(&mut self, _: &mut Package) -> Result<(), String>;
 
-    fn pour_out(&self, _: &mut Package) -> Result<(), String> {
-        Ok(())
+    /// Pour a cereal stream into a box.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the stream lack sufficient
+    /// bytes to fill the box.
+    fn pour_in(&mut self, _: &mut CerealStream) -> Result<(), String>;
+
+    /// Pour the contents of a cereal box into a cereal stream.
+    fn pour_out(&self, _: &mut CerealStream) {
     }
 
-    fn process(&self) -> Result<(), String> {
-        Ok(())
+    /// defines how a box of cereal is consumed.
+    fn consume(&self){
     }
 }
 
@@ -51,7 +74,7 @@ pub trait Cereal {
 /// let mut packager = Packager::new();
 /// ```
 pub struct Packager {
-    map: HashMap<u8, Box<dyn Cereal>>,
+    map: HashMap<u8, Box<dyn CerealBox>>,
 }
 
 impl Packager {
@@ -68,7 +91,7 @@ impl Packager {
     /// # Panics
     ///
     /// Panics if a cereal flavor has the same id key as a previously added flavor.
-    pub fn add_flavor(&mut self, flavor: Box<dyn Cereal>){
+    pub fn add_flavor(&mut self, flavor: Box<dyn CerealBox>){
         let id = flavor.get_id();
         if self.map.contains_key(&id) {
             panic!("Error adding flavor ot Packager! Multiple flavors have id: {}", id);
@@ -76,18 +99,26 @@ impl Packager {
         self.map.insert(id, flavor);
     }
 
-    pub fn serialize(&self, msg: &dyn Cereal, out: &mut Package) -> Result<(), String>{
+    /// unpack a ceral box into a cereal stream.
+    pub fn unpack(&self, msg: &dyn CerealBox, out: &mut CerealStream){
         let id = msg.get_id();
         out.push_bytes(&[id]);
-        msg.pour_out(out)
+        msg.pour_out(out);
     }
 
-    pub fn deserialize(&mut self, source: &mut Package) -> Result<(), String> {
+    /// pack a ceral box from the cereal stream.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the cereal stream does not
+    /// have enough bytes in it.
+    pub fn pack(&mut self, source: &mut CerealStream) -> Result<(), String> {
         let id = source.pop_byte();
+        let mut result: Result<(), String> = Ok(());
         self.map.entry(id).and_modify(|msg| {
-            msg.pour_in(source).unwrap();
+            result = msg.pour_in(source);
         });
-        Ok(())
+        result
     }
 
 }

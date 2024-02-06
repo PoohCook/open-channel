@@ -1,16 +1,17 @@
-use open_channel::cereal::{Cereal, Package};
+use open_channel::cereal::{CerealBox, CerealStream};
 use open_channel::serial_params::{Parity, StopBits};
 
 #[derive(PartialEq, Debug, Default)]
 pub struct Ping {}
 
-impl Cereal for Ping{
+impl CerealBox for Ping{
     fn get_id(&self) -> u8 {
         1
     }
 
-    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
-        self.process()
+    fn pour_in(&mut self, _: &mut CerealStream) -> Result<(), String> {
+        self.consume();
+        Ok(())
     }
 
 }
@@ -18,12 +19,13 @@ impl Cereal for Ping{
 #[derive(PartialEq, Debug, Default)]
 pub struct Pong {}
 
-impl Cereal for Pong{
+impl CerealBox for Pong{
     fn get_id(&self) -> u8 {
         2
     }
-    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
-        self.process()
+    fn pour_in(&mut self, _: &mut CerealStream) -> Result<(), String> {
+        self.consume();
+        Ok(())
     }
 
 }
@@ -31,12 +33,13 @@ impl Cereal for Pong{
 #[derive(PartialEq, Debug, Default)]
 pub struct VersionQuery {}
 
-impl Cereal for VersionQuery{
+impl CerealBox for VersionQuery{
     fn get_id(&self) -> u8 {
         3
     }
-    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
-        self.process()
+    fn pour_in(&mut self, _: &mut CerealStream) -> Result<(), String> {
+        self.consume();
+        Ok(())
     }
 
 }
@@ -50,23 +53,23 @@ pub struct VersionData {
     pub build: u8,
 }
 
-impl Cereal for VersionData{
+impl CerealBox for VersionData{
     fn get_id(&self) -> u8 {
         4
     }
 
-    fn pour_out(&self, package: &mut Package) -> Result<(), String> {
+    fn pour_out(&self, package: &mut CerealStream) {
         package.push_bytes(&[self.major, self.minor, self.maintenance, self.build]);
-        Ok(())
     }
 
-    fn pour_in(&mut self, package: &mut Package) -> Result<(), String> {
+    fn pour_in(&mut self, package: &mut CerealStream) -> Result<(), String> {
         self.major = package.pop_byte();
         self.minor = package.pop_byte();
         self.maintenance = package.pop_byte();
         self.build = package.pop_byte();
 
-        self.process()
+        self.consume();
+        Ok(())
     }
 }
 
@@ -77,23 +80,23 @@ pub struct AdcQuery {
     pub increment_usec: u32,
 }
 
-impl Cereal for AdcQuery{
+impl CerealBox for AdcQuery{
     fn get_id(&self) -> u8 {
         5
     }
 
-    fn pour_out(&self, package: &mut Package) -> Result<(), String> {
+    fn pour_out(&self, package: &mut CerealStream) {
         package.push_bytes(&[self.channel, self.length].to_vec());
         package.push_bytes(&self.increment_usec.to_le_bytes());
-        Ok(())
     }
 
-    fn pour_in(&mut self, package: &mut Package) -> Result<(), String> {
+    fn pour_in(&mut self, package: &mut CerealStream) -> Result<(), String> {
         self.channel = package.pop_byte();
         self.length = package.pop_byte();
         self.increment_usec = u32::from_le_bytes(package.pop_bytes(4).try_into().unwrap());
 
-        self.process()
+        self.consume();
+        Ok(())
     }
 }
 
@@ -103,12 +106,12 @@ pub struct AdcData {
     pub data: Vec<i16>
 }
 
-impl Cereal for AdcData{
+impl CerealBox for AdcData{
     fn get_id(&self) -> u8 {
         6
     }
 
-    fn pour_out(&self, package: &mut Package) -> Result<(), String> {
+    fn pour_out(&self, package: &mut CerealStream) {
         package.push_bytes(&[self.channel]);
         let data: Vec<u8> = self.data.iter()
             .flat_map(|&value| value.to_le_bytes().to_vec())
@@ -116,10 +119,9 @@ impl Cereal for AdcData{
         let length: u16 = data.len() as u16;
         package.push_bytes(&length.to_le_bytes().to_vec());
         package.push_bytes(&data);
-        Ok(())
     }
 
-    fn pour_in(&mut self, package: &mut Package) -> Result<(), String> {
+    fn pour_in(&mut self, package: &mut CerealStream) -> Result<(), String> {
         self.channel = package.pop_byte();
         let length = u16::from_le_bytes(package.pop_bytes(2).try_into().unwrap());
         self.data = package
@@ -132,7 +134,8 @@ impl Cereal for AdcData{
             })
             .collect();
 
-        self.process()
+        self.consume();
+        Ok(())
     }
 }
 
@@ -144,27 +147,27 @@ pub struct SerialParams {
     pub stop: StopBits,
 }
 
-impl Cereal for SerialParams {
+impl CerealBox for SerialParams {
   fn get_id(&self) -> u8 {
     8
   }
 
-  fn pour_out(&self, package: &mut Package) -> Result<(), String> {
+  fn pour_out(&self, package: &mut CerealStream) {
     package.push_bytes(&[self.channel]);
     package.push_bytes(&self.baud.to_le_bytes());
     package.push_bytes(&[self.parity.get_byte(), self.stop.get_byte()]);
-    Ok(())
 
   }
 
-  fn pour_in(&mut self, package: &mut Package) -> Result<(), String> {
+  fn pour_in(&mut self, package: &mut CerealStream) -> Result<(), String> {
 
     self.channel = package.pop_byte();
     self.baud = u32::from_le_bytes(package.pop_bytes(4).try_into().unwrap());
     self.parity = Parity::from_byte(&package.pop_byte()).unwrap_or(Parity::None);
     self.stop = StopBits::from_byte(&package.pop_byte()).unwrap_or(StopBits::One);
 
-    self.process()
+    self.consume();
+    Ok(())
 
   }
 

@@ -1,7 +1,7 @@
 
 use super::serial_params::Parity;
 use super::serial_params::StopBits;
-use super::cereal::{Package};
+use super::cereal::{CerealStream};
 
 #[derive(PartialEq, Debug)]
 enum Message {
@@ -52,7 +52,7 @@ impl Message {
     }
 
     #[allow(unused)]
-    fn deserialize(source: &mut Package) -> Option<Self> {
+    fn deserialize(source: &mut CerealStream) -> Option<Self> {
 
         match source.pop_byte() {
             1 => Some(Self::Ping),
@@ -108,7 +108,7 @@ impl Message {
     }
 
     #[allow(unused)]
-    fn serialize(&self, out: &mut Package) -> Result<(), String> {
+    fn serialize(&self, out: &mut CerealStream) -> Result<(), String> {
         let typeid = self.get_typeid();
         match self {
             Self::Ping => {out.push_bytes(&[typeid]);},
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn check_ping_pong() {
-        let mut serial = Package::new();
+        let mut serial = CerealStream::new();
 
         let ping = Message::Ping;
 
@@ -213,7 +213,7 @@ mod tests {
 
     #[test]
     fn check_version() {
-        let mut serial = Package::new();
+        let mut serial = CerealStream::new();
 
         let query = Message::VersionQuery;
 
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn check_adc() {
-        let mut serial = Package::new();
+        let mut serial = CerealStream::new();
 
         let query = Message::AdcQuery {
             channel: 1,
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn check_status() {
-        let mut serial = Package::new();
+        let mut serial = CerealStream::new();
 
         let status = Message::Status {
             rcv_count: 260,
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn check_parms() {
-        let mut serial = Package::new();
+        let mut serial = CerealStream::new();
 
         let params = Message::SerialParams {
             channel: 1,
@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn check_multiple_deserialize() {
-        let mut serial = Package::new();
+        let mut serial = CerealStream::new();
 
         let params = Message::SerialParams {
             channel: 1,

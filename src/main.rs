@@ -1,48 +1,41 @@
-mod flavors;
-use flavors::{*};
-use open_channel::cereal::{Package, Packager};
+mod boxes;
+use boxes::{*};
+use open_channel::cereal::{CerealStream, Packager};
 use open_channel::serial_params::{Parity, StopBits};
 
 impl Ping{
-    fn process(&self) -> Result<(), String> {
-        println!("Ping  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("Ping  Consuming: {:?}", self);
     }
 }
 impl Pong{
-    fn process(&self) -> Result<(), String> {
-        println!("Pong  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("Pong  Consuming: {:?}", self);
     }
 }
 impl VersionQuery{
-    fn process(&self) -> Result<(), String> {
-        println!("VersionQuery  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("VersionQuery  Consuming: {:?}", self);
     }
 }
 impl VersionData{
-    fn process(&self) -> Result<(), String> {
-        println!("VersionData  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("VersionData  Consuming: {:?}", self);
     }
 }
 impl AdcQuery{
-    fn process(&self) -> Result<(), String> {
-        println!("AdcQuery  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("AdcQuery  Consuming: {:?}", self);
     }
 }
 impl AdcData{
-    fn process(&self) -> Result<(), String> {
-        println!("AdcData  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("AdcData  Consuming: {:?}", self);
     }
 }
 impl SerialParams{
-    fn process(&self) -> Result<(), String> {
-        println!("SerialParams  Processing: {:?}", self);
-        Ok(())
+    fn consume(&self) {
+        println!("SerialParams  Consuming: {:?}", self);
     }
 }
 
@@ -65,52 +58,52 @@ fn main() {
 
     let mut packager = create_packger();
 
-    let mut serial = Package::new();
-    packager.serialize(&Ping::default(), &mut serial).unwrap();
-    packager.serialize(&Pong::default(), &mut serial).unwrap();
-    packager.serialize(&VersionQuery::default(), &mut serial).unwrap();
-    packager.serialize(&VersionData{
+    let mut serial = CerealStream::new();
+    packager.unpack(&Ping::default(), &mut serial);
+    packager.unpack(&Pong::default(), &mut serial);
+    packager.unpack(&VersionQuery::default(), &mut serial);
+    packager.unpack(&VersionData{
         major: 1,
         minor: 2,
         maintenance: 3,
         build: 4,
-    }, &mut serial).unwrap();
-    packager.serialize(&VersionData{
+    }, &mut serial);
+    packager.unpack(&VersionData{
         major: 4,
         minor: 1,
         maintenance: 9,
         build: 3,
-    }, &mut serial).unwrap();
-    packager.serialize(&SerialParams{
+    }, &mut serial);
+    packager.unpack(&SerialParams{
         channel: 1,
         baud: 19200,
         parity: Parity::Even,
         stop: StopBits::One
-    }, &mut serial).unwrap();
-    packager.serialize(&AdcQuery{
+    }, &mut serial);
+    packager.unpack(&AdcQuery{
         channel: 3,
         length:4,
         increment_usec: 1500
-    }, &mut serial).unwrap();
-    packager.serialize(&AdcData{
+    }, &mut serial);
+    packager.unpack(&AdcData{
         channel: 7,
         data: [1024, 1999, 0, -800, -900].to_vec()
-    }, &mut serial).unwrap();
-    packager.serialize(&SerialParams{
+    }, &mut serial);
+    packager.unpack(&SerialParams{
         channel: 2,
         baud: 9600,
         parity: Parity::Odd,
         stop: StopBits::Two
-    }, &mut serial).unwrap();
-    packager.serialize(&SerialParams{
+    }, &mut serial);
+    packager.unpack(&SerialParams{
         channel: 3,
         baud: 4800,
         parity: Parity::None,
         stop: StopBits::One
-    }, &mut serial).unwrap();
+    }, &mut serial);
 
     while !serial.is_empty(){
-        packager.deserialize(&mut serial).unwrap();
+        packager.pack(&mut serial).unwrap();
     }
 
     // assert_eq!(0, serial.get_vec().len());
