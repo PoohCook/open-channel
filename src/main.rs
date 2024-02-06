@@ -88,20 +88,8 @@ fn main() {
         channel: 7,
         data: [1024, 1999, 0, -800, -900].to_vec()
     });
-    packager.unpack(&SerialParams{
-        channel: 2,
-        baud: 9600,
-        char_len: CharLength::Eight,
-        parity: Parity::Odd,
-        stop: StopBits::Two
-    });
-    packager.unpack(&SerialParams{
-        channel: 3,
-        baud: 4800,
-        char_len: CharLength::Seven,
-        parity: Parity::None,
-        stop: StopBits::One
-    });
+    packager.unpack(&SerialParams::from_str(2, "9600:8O2").unwrap());
+    packager.unpack(&SerialParams::from_str(3, "4800:7n1").unwrap());
 
     while !packager.is_empty(){
         packager.pack().unwrap();
