@@ -30,29 +30,44 @@ impl Package {
 
 pub trait Cereal {
     fn get_id(&self) -> u8;
+    fn pour_in(&mut self, _: &mut Package) -> Result<(), String>;
+
     fn pour_out(&self, _: &mut Package) -> Result<(), String> {
         Ok(())
     }
 
-    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
-        self.process()
+    fn process(&self) -> Result<(), String> {
+        Ok(())
     }
-
-    fn process(&self) -> Result<(), String>;
 }
 
+/// A Hub for serializing and deserializing Cereal Flavors into a Package Stream
+///
+/// # Examples
+///
+/// ```
+/// use open_channel::cereal::Packager;
+///
+/// let mut packager = Packager::new();
+/// ```
 pub struct Packager {
     map: HashMap<u8, Box<dyn Cereal>>,
 }
 
 impl Packager {
 
+    /// Creates a new [`Packager`].
     pub fn new() -> Self {
         Self {
             map: HashMap::new()
         }
     }
 
+    /// Adds a Ceareal Flavor to the Packager.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a cereal flavor has the same id key as a previously added flavor.
     pub fn add_flavor(&mut self, flavor: Box<dyn Cereal>){
         let id = flavor.get_id();
         if self.map.contains_key(&id) {

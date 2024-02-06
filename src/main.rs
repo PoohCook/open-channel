@@ -3,6 +3,51 @@ use flavors::{*};
 use open_channel::cereal::{Package, Packager};
 use open_channel::serial_params::{Parity, StopBits};
 
+impl Ping{
+    fn process(&self) -> Result<(), String> {
+        println!("Ping  Processing: {:?}", self);
+        Ok(())
+    }
+}
+impl Pong{
+    fn process(&self) -> Result<(), String> {
+        println!("Pong  Processing: {:?}", self);
+        Ok(())
+    }
+}
+impl VersionQuery{
+    fn process(&self) -> Result<(), String> {
+        println!("VersionQuery  Processing: {:?}", self);
+        Ok(())
+    }
+}
+impl VersionData{
+    fn process(&self) -> Result<(), String> {
+        println!("VersionData  Processing: {:?}", self);
+        Ok(())
+    }
+}
+impl AdcQuery{
+    fn process(&self) -> Result<(), String> {
+        println!("AdcQuery  Processing: {:?}", self);
+        Ok(())
+    }
+}
+impl AdcData{
+    fn process(&self) -> Result<(), String> {
+        println!("AdcData  Processing: {:?}", self);
+        Ok(())
+    }
+}
+impl SerialParams{
+    fn process(&self) -> Result<(), String> {
+        println!("SerialParams  Processing: {:?}", self);
+        Ok(())
+    }
+}
+
+
+
 fn create_packger() -> Packager {
     let mut packager = Packager::new();
     packager.add_flavor(Box::new(Ping::default()));

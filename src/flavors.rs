@@ -8,10 +8,11 @@ impl Cereal for Ping{
     fn get_id(&self) -> u8 {
         1
     }
-    fn process(&self) -> Result<(), String> {
-        println!("Ping Processing: {:?}", self);
-        Ok(())
+
+    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
+        self.process()
     }
+
 }
 
 #[derive(PartialEq, Debug, Default)]
@@ -21,10 +22,10 @@ impl Cereal for Pong{
     fn get_id(&self) -> u8 {
         2
     }
-    fn process(&self) -> Result<(), String> {
-        println!("Pong Processing: {:?}", self);
-        Ok(())
+    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
+        self.process()
     }
+
 }
 
 #[derive(PartialEq, Debug, Default)]
@@ -34,10 +35,10 @@ impl Cereal for VersionQuery{
     fn get_id(&self) -> u8 {
         3
     }
-    fn process(&self) -> Result<(), String> {
-        println!("VersionQuery Processing: {:?}", self);
-        Ok(())
+    fn pour_in(&mut self, _: &mut Package) -> Result<(), String> {
+        self.process()
     }
+
 }
 
 
@@ -67,11 +68,6 @@ impl Cereal for VersionData{
 
         self.process()
     }
-
-    fn process(&self) -> Result<(), String> {
-        println!("VD Processing: {:?}", self);
-        Ok(())
-    }
 }
 
 #[derive(PartialEq, Debug, Default)]
@@ -98,11 +94,6 @@ impl Cereal for AdcQuery{
         self.increment_usec = u32::from_le_bytes(package.pop_bytes(4).try_into().unwrap());
 
         self.process()
-    }
-
-    fn process(&self) -> Result<(), String> {
-        println!("AdcQuery Processing: {:?}", self);
-        Ok(())
     }
 }
 
@@ -143,11 +134,6 @@ impl Cereal for AdcData{
 
         self.process()
     }
-
-    fn process(&self) -> Result<(), String> {
-        println!("AdcData Processing: {:?}", self);
-        Ok(())
-    }
 }
 
 #[derive(PartialEq, Debug, Default)]
@@ -182,9 +168,4 @@ impl Cereal for SerialParams {
 
   }
 
-  fn process(&self) -> Result<(), String> {
-    println!("SerialParams Processing: {:?}", self);
-    Ok(())
-
-  }
 }
