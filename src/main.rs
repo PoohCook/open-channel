@@ -1,7 +1,7 @@
 mod boxes;
 use boxes::{*};
 use open_channel::cereal::Packager;
-use open_channel::serial_params::{Parity, StopBits};
+use open_channel::serial_params::{CharLength, Parity, StopBits};
 
 impl Ping{
     fn consume(&self) {
@@ -75,6 +75,7 @@ fn main() {
     packager.unpack(&SerialParams{
         channel: 1,
         baud: 19200,
+        char_len: CharLength::Eight,
         parity: Parity::Even,
         stop: StopBits::One
     });
@@ -90,12 +91,14 @@ fn main() {
     packager.unpack(&SerialParams{
         channel: 2,
         baud: 9600,
+        char_len: CharLength::Eight,
         parity: Parity::Odd,
         stop: StopBits::Two
     });
     packager.unpack(&SerialParams{
         channel: 3,
         baud: 4800,
+        char_len: CharLength::Seven,
         parity: Parity::None,
         stop: StopBits::One
     });

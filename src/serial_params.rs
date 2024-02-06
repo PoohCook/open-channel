@@ -33,16 +33,16 @@ impl CharLength {
     /// returns None if there is no mapping
     pub fn from_byte(byte: &u8) -> Option<Self> {
         match byte {
-            1 => Some(Self::Seven),
-            2 => Some(Self::Eight),
+            7 => Some(Self::Seven),
+            8 => Some(Self::Eight),
             _ => None,
         }
     }
     /// Returns the u8 representation of this [`CharLength`].
     pub fn get_byte(&self) -> u8 {
         match self {
-            Self::Seven => 1,
-            Self::Eight => 2,
+            Self::Seven => 7,
+            Self::Eight => 8,
         }
     }
 }
@@ -132,7 +132,7 @@ impl Parity {
 ///   assert_eq!(Some(sb), v2);
 ///
 ///   assert_eq!(None, StopBits::from_byte(&33));
-///   
+///
 /// ```
 ///
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
